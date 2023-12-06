@@ -1,0 +1,120 @@
+---
+title: "Deciphering Nature's Patterns: Classification with the Iris Dataset"
+image: image.png
+author: "Sahana Bhaskar"
+date: "2023-11-29"
+categories: [classification, ensemble, supervised learning]
+format:
+    html:
+        code-fold: true
+        code-tools: true
+jupyter: python3
+---
+
+In the vast and intricate domain of machine learning, classification tasks hold a place of high regard. One of the most celebrated datasets in this area is the Iris dataset, a cornerstone for budding data scientists and seasoned professionals alike. This blog post is dedicated to exploring the nuances of classifying Iris flowers using a specific machine learning technique, enriched with practical code and visual insights.
+
+#The Iris Dataset: A Botanical Puzzle
+The Iris dataset, a hallmark in the world of machine learning, presents a fascinating challenge: to classify iris flowers into one of three species (Setosa, Versicolour, and Virginica) based on four features - sepal length, sepal width, petal length, and petal width. Each species, represented by 50 samples in the dataset, has its unique combination of these features. The goal is clear: to build a model that can accurately predict the species based on these physical measurements.
+
+# Unraveling the Dataset with Machine Learning
+Our journey through the Iris dataset involves several key stages, each integral to the process of machine learning.
+
+## Preparatory Steps: Setting Up the Python Environment
+The journey begins in Python, a haven for data science enthusiasts, courtesy of its extensive libraries. We import essential packages like Pandas for data manipulation, NumPy for numerical calculations, and Seaborn and Matplotlib for visualization. Scikit-learn, a cornerstone library in Python for machine learning, brings in the necessary algorithms and tools:
+```{python}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn import datasets
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, label_binarize
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import roc_curve, auc
+from sklearn.multiclass import OneVsRestClassifier
+import seaborn as sns
+```
+
+## Diving into the Data: Loading and Preparing the Iris Dataset
+The dataset is loaded, and we proceed to bifurcate it into training and testing sets. This split is critical to evaluate our model effectively, ensuring that it can generalize well to unseen data:
+```{python}
+# Load the dataset
+iris = pd.read_csv('IRIS.csv')
+iris = iris.sample(frac=1)
+X = iris[['sepal_length', 'sepal_width', 'petal_length', 'petal_width']]
+y = iris['species']
+y = label_binarize(y, classes=['Iris-setosa', 'Iris-versicolor', 'Iris-virginica'])
+
+n_classes = y.shape[1]
+
+# Splitting the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+```
+
+## The Heart of the Matter: Choosing the K-Nearest Neighbors
+Algorithm
+For our classification task, we select the K-Nearest Neighbors (KNN) algorithm. KNN is a simple yet powerful non-parametric algorithm used in classification and regression. It operates on a straightforward principle: the class of a data point is determined by the majority class among its k-nearest neighbors. The value of 'k' is a crucial hyperparameter and determines the number of neighbors to consider while making the classification decision.
+KNN is particularly appealing for its ease of understanding and implementation. It makes no underlying assumptions about the distribution of data, making it versatile across various datasets. In our case, the decision to choose KNN stems from its efficacy in handling small, clean datasets like the Iris.
+
+## Implementing the KNN Classifier
+We use Scikit-learn's implementation of KNN, which involves initializing the classifier, fitting it to our training data, and then using it to make predictions:
+```{python}
+knn = OneVsRestClassifier(KNeighborsClassifier(n_neighbors= 3))
+knn.fit(X_train, y_train)
+
+knn.score(X_test,y_test)
+```
+
+## Evaluating and Visualizing the Model's Performance
+The final step in our journey is to evaluate and visualize the model's performance. A confusion matrix provides a straightforward way to visualize the accuracy of the classifier, showing the correct and incorrect predictions across different classes. .The confusion matrix (cm) is calculated from the predictions (y_pred) and the true labels (y_test). The ROC curve, in particular, provides a nuanced view of model performance, especially in multi-class scenarios like our Iris dataset. These visualizations and metrics calculated provide a comprehensive view of the model's performance and the dataset's structure, aiding in better understanding and interpretation of the results.
+```{python}
+#| label: fig-results
+#| fig-cap: "KNN Results"
+#| fig-subcap:
+#|  - Confusion Matrix
+#|  - RoC Curve
+from sklearn import metrics
+y_pred = knn.predict(X_test)
+print("Accuracy:",metrics.accuracy_score(np.argmax(y_test,axis=1), np.argmax(y_pred,axis=1)))
+print("Precision:", metrics.precision_score(np.argmax(y_test,axis=1), np.argmax(y_pred,axis=1), average='weighted'))
+print("Recall:", metrics.recall_score(np.argmax(y_test,axis=1), np.argmax(y_pred,axis=1), average='weighted'))
+print("sensitivity:", metrics.recall_score(np.argmax(y_test,axis=1), np.argmax(y_pred,axis=1), average='weighted'))
+print("f1 score:", metrics.f1_score(np.argmax(y_test,axis=1), np.argmax(y_pred,axis=1), average='weighted'))
+print(metrics.classification_report(np.argmax(y_test,axis=1), np.argmax(y_pred,axis=1), target_names = ['Iris-setosa', 'Iris-versicolor', 'Iris-virginica']))
+
+cm = metrics.confusion_matrix(np.argmax(y_test, axis=1), np.argmax(y_pred, axis=1))
+sns.heatmap(cm, annot=True, fmt="d")
+plt.title('Confusion Matrix')
+plt.ylabel('True label')
+plt.xlabel('Predicted label')
+plt.show()
+
+# Compute ROC curve and ROC area for each class
+fpr = dict()
+tpr = dict()
+roc_auc = dict()
+for i in range(n_classes):
+    y_score = knn.predict_proba(X_test)
+    fpr[i], tpr[i], _ = roc_curve(y_test[:, i], y_score[:, i])
+    roc_auc[i] = auc(fpr[i], tpr[i])
+
+colors = ['blue', 'red', 'green']
+for i, color in zip(range(n_classes), colors):
+    plt.plot(fpr[i], tpr[i], color=color, lw=2,
+             label='ROC curve of class {0} (area = {1:0.2f})'.format(i, roc_auc[i]))
+
+plt.plot([0, 1], [0, 1], 'k--', lw=2)
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic for Iris Dataset')
+plt.legend(loc="lower right")
+plt.show()
+```
+
+# Concluding Thoughts
+Through the lens of the Iris dataset, we've navigated the fundamentals of classification in machine learning. The K-Nearest Neighbors algorithm, with its simplicity and effectiveness, serves as an excellent starting point for understanding classification tasks. The journey from raw data to insightful visualizations encapsulates the essence of machine learning: transforming data into knowledge.
+As you embark on your machine learning adventures, remember that each dataset has a story to tell, and it's through algorithms like KNN that we can uncover these hidden narratives. Whether it's the petals of an Iris flower or the more complex datasets of the real world, the principles of classification remain a steadfast guide
